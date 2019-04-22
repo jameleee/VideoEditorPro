@@ -11,8 +11,10 @@ import android.view.View
  */
 class TypeButtonView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
     View(context, attrs, defStyleAttr) {
-    val TYPE_CANCEL = 1111
-    val TYPE_CONFIRM = 1112
+    companion object {
+        const val TYPE_CANCEL = 1111
+        const val TYPE_CONFIRM = 1112
+    }
 
     constructor(context: Context, type: Int, size: Int) : this(context) {
         this.type = type

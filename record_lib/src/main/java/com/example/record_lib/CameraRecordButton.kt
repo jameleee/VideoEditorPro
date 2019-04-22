@@ -13,7 +13,6 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.example.record_lib.listener.CaptureListener
-import com.example.record_lib.util.CheckPermission
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
@@ -104,10 +103,10 @@ class CameraRecordButton @JvmOverloads constructor(
         // Out side rectangle
         rectReDraw.set(
             RectF(
-                centerX - (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerY - (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerX + (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerY + (buttonRadius + outsideAddSize - strokeWidth / 2)
+                centerX - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerX + (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY + (circleRadius + outsideAddSize - strokeWidth / 2)
             )
         )
     }
@@ -119,14 +118,6 @@ class CameraRecordButton @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        rectReDraw.set(
-            RectF(
-                centerX - (circleRadius + outsideAddSize - strokeWidth / 2),
-                centerY - (circleRadius + outsideAddSize - strokeWidth / 2),
-                centerX + (circleRadius + outsideAddSize - strokeWidth / 2),
-                centerY + (circleRadius + outsideAddSize - strokeWidth / 2)
-            )
-        )
 
         // If the status is recording, draw a recording progress bar
         paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonOutsideColor)
@@ -179,16 +170,17 @@ class CameraRecordButton @JvmOverloads constructor(
             .observeOn(AndroidSchedulers.mainThread()).subscribe {
                 when {
                     strokeWidth <= buttonSize / 15f -> {
-                        strokeWidth += 1.5f
+                        strokeWidth += 1f
                         isDrawIn = false
                     }
                     strokeWidth >= buttonSize / 15f + 20 -> {
-                        strokeWidth -= 1.5f
+                        strokeWidth -= 1f
                         isDrawIn = true
                     }
-                    isDrawIn -> strokeWidth -= 1.5f
-                    else -> strokeWidth += 1.5f
+                    isDrawIn -> strokeWidth -= 1f
+                    else -> strokeWidth += 1f
                 }
+                redrawRectF()
                 invalidate()
             }
     }
@@ -220,12 +212,12 @@ class CameraRecordButton @JvmOverloads constructor(
     private fun startZoomAnimation() {
         state = STATE_RECORDING
         // No recording permission
-        if (CheckPermission.recordState !== CheckPermission.STATE_SUCCESS) {
-            if (captureListener != null) {
-                captureListener?.recordError()
-                return
-            }
-        }
+        /* if (CheckPermission.recordState != CheckPermission.STATE_SUCCESS) {
+             if (captureListener != null) {
+                 captureListener?.recordError()
+                 return
+             }
+         }*/
         // Start button animation, the outer circle becomes zoom animation, and the inner circle to the border rectangle
         startRecordAnimation(
             strokeWidth,
@@ -266,7 +258,7 @@ class CameraRecordButton @JvmOverloads constructor(
         val insideAnim = ValueAnimator.ofFloat(insideStart, insideEnd)
         val circleAnim = ValueAnimator.ofFloat(circleStart, circleEnd)
         disposable?.dispose()
-        animateRoundOutsize(50)
+        animateRoundOutsize(30)
         // outside circle animation
         outsideAnim.addUpdateListener { animation ->
             buttonOutsideRadius = animation.animatedValue as Float
@@ -287,13 +279,13 @@ class CameraRecordButton @JvmOverloads constructor(
             override fun onAnimationEnd(animation: Animator) {
                 super.onAnimationEnd(animation)
                 // Set to recording status
-                if (state == STATE_LONG_PRESS) {
+                if (state == STATE_RECORDING) {
                     if (captureListener != null)
                         captureListener?.recordStart()
-                    state = STATE_RECORDING
                 } else if (state == STATE_IDLE) {
                     disposable?.dispose()
                     strokeWidth = buttonSize / 15f
+                    redrawRectF()
                     invalidate()
                 }
             }
@@ -301,6 +293,17 @@ class CameraRecordButton @JvmOverloads constructor(
         animatorSet.playTogether(outsideAnim, insideAnim, circleAnim)
         animatorSet.duration = 500
         animatorSet.start()
+    }
+
+    private fun redrawRectF() {
+        rectReDraw.set(
+            RectF(
+                centerX - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerX + (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY + (circleRadius + outsideAddSize - strokeWidth / 2)
+            )
+        )
     }
 
     // animatorSet duration
@@ -314,8 +317,8 @@ class CameraRecordButton @JvmOverloads constructor(
     }
 
     // init capture listener
-    fun setCaptureLisenter(captureLisenter: CaptureListener) {
-        this.captureListener = captureLisenter
+    fun setCaptureListener(captureListener: CaptureListener) {
+        this.captureListener = captureListener
     }
 
     // animatorSet button state
