@@ -7,10 +7,8 @@ import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -41,14 +39,9 @@ class CameraRecordButton @JvmOverloads constructor(
     private var state = 0
     private var buttonState = 0
 
-    private val progressColor = -0x11e951ea
-    private val outsideColor = -0x11232324
-    private val insideColor = -0x1
-
     private var eventY: Float = 0f // Touch event down
 
     private val paint: Paint = Paint()
-    private val path: Path = Path()
 
     private var strokeWidth: Float = 0f
     private var outsideAddSize: Int = 0
@@ -60,9 +53,10 @@ class CameraRecordButton @JvmOverloads constructor(
     private var buttonRadius: Float = 0f
     private var buttonOutsideRadius: Float = 0f
     private var buttonInsideRadius: Float = 0f
+    private var circleRadius: Float = 0f
     private var buttonSize: Int = 0
 
-    private var progress: Float = 0.toFloat()
+    private var progress: Float = 360f
     private var duration: Int = 0
     private var minduration: Int = 0
     private var recordedTime: Long = 0
@@ -70,7 +64,9 @@ class CameraRecordButton @JvmOverloads constructor(
     private var rectF: RectF = RectF()
     private var rectReDraw = RectF()
 
-    private var captureLisenter: CaptureListener? = null
+    private val animatorSet = AnimatorSet()
+
+    private var captureListener: CaptureListener? = null
 
     private var disposable: Disposable? = null
 
@@ -84,6 +80,8 @@ class CameraRecordButton @JvmOverloads constructor(
         strokeWidth = size / 15f
         outsideAddSize = size / 5
         insideReduceSize = size / 8
+
+        circleRadius = buttonRadius - outsideAddSize + strokeWidth / 2
 
         paint.isAntiAlias = true
         paint.flags = Paint.ANTI_ALIAS_FLAG
@@ -102,6 +100,16 @@ class CameraRecordButton @JvmOverloads constructor(
                 centerY + outsideAddSize
             )
         )
+
+        // Out side rectangle
+        rectReDraw.set(
+            RectF(
+                centerX - (buttonRadius + outsideAddSize - strokeWidth / 2),
+                centerY - (buttonRadius + outsideAddSize - strokeWidth / 2),
+                centerX + (buttonRadius + outsideAddSize - strokeWidth / 2),
+                centerY + (buttonRadius + outsideAddSize - strokeWidth / 2)
+            )
+        )
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -111,42 +119,26 @@ class CameraRecordButton @JvmOverloads constructor(
 
     override fun onDraw(canvas: Canvas?) {
         super.onDraw(canvas)
-        //draw arc
-        paint.style = Paint.Style.STROKE
-        paint.strokeWidth = buttonSize / 15f
-        Log.d("zxc", "beginnnn $strokeWidth")
-
-        paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonOutsideColor)
-        canvas?.drawCircle(centerX, centerY, buttonOutsideRadius, paint)
-
-        paint.style = Paint.Style.FILL
-        paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonInsideColor)
-        canvas?.drawCircle(centerX, centerY, buttonInsideRadius, paint)
-        canvas?.drawRoundRect(rectF, 5f, 5f, paint)
-
-        Log.d("zxc", "sss $buttonRadius  ==== $outsideAddSize")
-
         rectReDraw.set(
             RectF(
-                centerX - (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerY - (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerX + (buttonRadius + outsideAddSize - strokeWidth / 2),
-                centerY + (buttonRadius + outsideAddSize - strokeWidth / 2)
+                centerX - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY - (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerX + (circleRadius + outsideAddSize - strokeWidth / 2),
+                centerY + (circleRadius + outsideAddSize - strokeWidth / 2)
             )
         )
 
-        paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonProgressColor)
+        // If the status is recording, draw a recording progress bar
+        paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonOutsideColor)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = strokeWidth
-        canvas?.drawArc(rectReDraw, -90f, 360f, false, paint)
+        canvas?.drawArc(rectReDraw, -90f, progress, false, paint)
 
-        // If the status is recording, draw a recording progress bar
-        /* if (state == STATE_RECORDING) {
-             paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonProgressColor)
-             paint.style = Paint.Style.STROKE
-             paint.strokeWidth = strokeWidth
-             canvas?.drawArc(rectF, -90f, progress, false, paint)
-         }*/
+        // Draw the filled circle in center
+        paint.style = Paint.Style.FILL
+        paint.color = ContextCompat.getColor(context, R.color.cameraRecordButtonInsideColor)
+        canvas?.drawCircle(centerX, centerY, buttonInsideRadius, paint)
+        canvas?.drawRoundRect(rectF, 10f, 10f, paint)
     }
 
     override fun onTouchEvent(event: MotionEvent?): Boolean {
@@ -155,15 +147,16 @@ class CameraRecordButton @JvmOverloads constructor(
                 if (event.pointerCount > 1)
                     return false
                 eventY = event.y
+                animatorSet.cancel()
 //                if ((buttonState == ButtonState.BUTTON_STATE_ONLY_RECORDER.type() || buttonState == ButtonState.BUTTON_STATE_BOTH.type()))
-                startZoomAnimation()
+                if (state == STATE_IDLE) startZoomAnimation() else handlerUnPressByState()
             }
-            MotionEvent.ACTION_MOVE -> if (captureLisenter != null
+            MotionEvent.ACTION_MOVE -> if (captureListener != null
                 && state == STATE_RECORDING
                 && (buttonState == ButtonState.BUTTON_STATE_ONLY_RECORDER.type()
                         || buttonState == ButtonState.BUTTON_STATE_BOTH.type())
             ) {
-                captureLisenter?.recordZoom(eventY - event.y)
+                captureListener?.recordZoom(eventY - event.y)
             }
             MotionEvent.ACTION_UP ->
 //                handlerUnPressByState()
@@ -176,21 +169,8 @@ class CameraRecordButton @JvmOverloads constructor(
     //The logic that is processed when the finger releases the button
     private fun handlerUnPressByState() {
         disposable?.dispose()
-//        startCaptureAnimation(buttonInsideRadius)
         // Process according to current state
         recordEnd()
-/* when (state) {
-            // Currently click state
-            STATE_PRESS -> if (captureLisenter != null && (buttonState == ButtonState.BUTTON_STATE_ONLY_CAPTURE.type() || buttonState == ButtonState.BUTTON_STATE_BOTH.type())) {
-                startCaptureAnimation(buttonInsideRadius)
-            } else {
-                state = STATE_IDLE
-            }
-            // Currently is a long press state
-            STATE_RECORDING -> {
-                recordEnd()
-            }
-        }*/
     }
 
     private fun animateRoundOutsize(time: Long) {
@@ -199,26 +179,26 @@ class CameraRecordButton @JvmOverloads constructor(
             .observeOn(AndroidSchedulers.mainThread()).subscribe {
                 when {
                     strokeWidth <= buttonSize / 15f -> {
-                        strokeWidth += 1
+                        strokeWidth += 1.5f
                         isDrawIn = false
                     }
                     strokeWidth >= buttonSize / 15f + 20 -> {
-                        strokeWidth -= 1
+                        strokeWidth -= 1.5f
                         isDrawIn = true
                     }
-                    isDrawIn -> strokeWidth -= 1
-                    else -> strokeWidth += 1
+                    isDrawIn -> strokeWidth -= 1.5f
+                    else -> strokeWidth += 1.5f
                 }
                 invalidate()
             }
     }
 
     private fun recordEnd() {
-        if (captureLisenter != null) {
+        if (captureListener != null) {
             if (recordedTime < minduration)
-                captureLisenter?.recordShort(recordedTime)
+                captureListener?.recordShort(recordedTime)
             else
-                captureLisenter?.recordEnd(recordedTime)
+                captureListener?.recordEnd(recordedTime)
         }
         resetRecordAnim()
     }
@@ -226,23 +206,23 @@ class CameraRecordButton @JvmOverloads constructor(
     // Remastered state
     private fun resetRecordAnim() {
         state = STATE_IDLE
-        progress = 0f
-        invalidate()
         // Restore button initial state animation
         startRecordAnimation(
             buttonOutsideRadius,
             buttonRadius,
             buttonInsideRadius,
-            buttonRadius * 0.85f
+            buttonRadius * 0.85f,
+            buttonRadius,
+            buttonRadius - outsideAddSize + strokeWidth / 2
         )
     }
 
     private fun startZoomAnimation() {
-
+        state = STATE_RECORDING
         // No recording permission
         if (CheckPermission.recordState !== CheckPermission.STATE_SUCCESS) {
-            if (captureLisenter != null) {
-                captureLisenter?.recordError()
+            if (captureListener != null) {
+                captureListener?.recordError()
                 return
             }
         }
@@ -251,14 +231,10 @@ class CameraRecordButton @JvmOverloads constructor(
             strokeWidth,
             strokeWidth + 20,
             buttonInsideRadius,
-            0f
+            0f,
+            circleRadius,
+            buttonRadius
         )
-        /*startRecordAnimation(
-            buttonOutsideRadius,
-            buttonOutsideRadius + outsideAddSize,
-            buttonInsideRadius,
-            buttonInsideRadius - insideReduceSize
-        )*/
     }
 
     private fun startCaptureAnimation(inside_start: Float) {
@@ -271,19 +247,28 @@ class CameraRecordButton @JvmOverloads constructor(
             override fun onAnimationEnd(animation: Animator) {
                 super.onAnimationEnd(animation)
                 // Callback camera interface
-                captureLisenter?.takePictures()
+                captureListener?.takePictures()
             }
         })
         insideAnim.duration = 100
         insideAnim.start()
     }
 
-    private fun startRecordAnimation(outside_start: Float, outside_end: Float, inside_start: Float, inside_end: Float) {
-        val outsideAnim = ValueAnimator.ofFloat(outside_start, outside_end)
-        val insideAnim = ValueAnimator.ofFloat(inside_start, inside_end)
+    private fun startRecordAnimation(
+        outsideStart: Float,
+        outsideEnd: Float,
+        insideStart: Float,
+        insideEnd: Float,
+        circleStart: Float,
+        circleEnd: Float
+    ) {
+        val outsideAnim = ValueAnimator.ofFloat(outsideStart, outsideEnd)
+        val insideAnim = ValueAnimator.ofFloat(insideStart, insideEnd)
+        val circleAnim = ValueAnimator.ofFloat(circleStart, circleEnd)
+        disposable?.dispose()
+        animateRoundOutsize(50)
         // outside circle animation
         outsideAnim.addUpdateListener { animation ->
-            //            strokeWidth = animation.animatedValue as Float
             buttonOutsideRadius = animation.animatedValue as Float
             invalidate()
         }
@@ -292,42 +277,48 @@ class CameraRecordButton @JvmOverloads constructor(
             buttonInsideRadius = animation.animatedValue as Float
             invalidate()
         }
-        val set = AnimatorSet()
+        // Circle animation
+        circleAnim.addUpdateListener { animation ->
+            circleRadius = animation.animatedValue as Float
+            invalidate()
+        }
         // Start recording Runnable when the animation is over and call back the recording start interface
-        set.addListener(object : AnimatorListenerAdapter() {
+        animatorSet.addListener(object : AnimatorListenerAdapter() {
             override fun onAnimationEnd(animation: Animator) {
                 super.onAnimationEnd(animation)
-                disposable?.dispose()
-                animateRoundOutsize(50)
                 // Set to recording status
                 if (state == STATE_LONG_PRESS) {
-                    if (captureLisenter != null)
-                        captureLisenter?.recordStart()
+                    if (captureListener != null)
+                        captureListener?.recordStart()
                     state = STATE_RECORDING
+                } else if (state == STATE_IDLE) {
+                    disposable?.dispose()
+                    strokeWidth = buttonSize / 15f
+                    invalidate()
                 }
             }
         })
-        set.playTogether(outsideAnim, insideAnim)
-        set.duration = 100
-        set.start()
+        animatorSet.playTogether(outsideAnim, insideAnim, circleAnim)
+        animatorSet.duration = 500
+        animatorSet.start()
     }
 
-    // set duration
+    // animatorSet duration
     fun setDuration(duration: Int) {
         this.duration = duration
     }
 
-    // set min duration
+    // animatorSet min duration
     fun setMinDuration(duration: Int) {
         minduration = duration
     }
 
     // init capture listener
     fun setCaptureLisenter(captureLisenter: CaptureListener) {
-        this.captureLisenter = captureLisenter
+        this.captureListener = captureLisenter
     }
 
-    // set button state
+    // animatorSet button state
     fun setButtonFeatures(state: Int) {
         buttonState = state
     }
