@@ -71,43 +71,6 @@ class RecordLayout @JvmOverloads constructor(
         setMeasuredDimension(layoutWidth, layoutHeight)
     }
 
-    private fun initEvent() {
-        // The default Type button is hidden
-        ivCustomRight?.visibility = View.GONE
-        btnCancel?.visibility = View.GONE
-        btnConfirm?.visibility = View.GONE
-    }
-
-    fun startTypeBtnAnimator() {
-        // Animation after taking a photo
-        if (this.iconLeft != 0)
-            ivCustomLeft?.visibility = View.GONE
-        else
-            btnReturn?.visibility = View.GONE
-        if (this.iconRight != 0)
-            ivCustomRight?.visibility = View.GONE
-//        btnCapture?.visibility = View.GONE
-        btnCancel?.visibility = View.VISIBLE
-        btnConfirm?.visibility = View.VISIBLE
-        btnCancel?.isClickable = false
-        btnConfirm?.isClickable = false
-        val animatorCancel = ObjectAnimator.ofFloat(btnCancel, "translationX", layoutWidth / 4f, 0f)
-        val animatorConfirm = ObjectAnimator.ofFloat(btnConfirm, "translationX", -layoutWidth / 4f, 0f)
-
-        val set = AnimatorSet()
-        set.playTogether(animatorCancel, animatorConfirm)
-        set.addListener(object : AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: Animator) {
-                super.onAnimationEnd(animation)
-                btnCancel?.isClickable = true
-                btnConfirm?.isClickable = true
-            }
-        })
-        set.duration = 200
-        set.start()
-    }
-
-
     private fun initView() {
         setWillNotDraw(false)
         // Camera button
@@ -216,7 +179,7 @@ class RecordLayout @JvmOverloads constructor(
         // Custom button on the right
         ivCustomRight = ImageView(context)
         val ivCustomParamRight = FrameLayout.LayoutParams((buttonSize / 2.5f).toInt(), (buttonSize / 2.5f).toInt())
-        ivCustomParamRight.gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT
+        ivCustomParamRight.gravity = Gravity.CENTER_VERTICAL or Gravity.END
         ivCustomParamRight.setMargins(0, 0, layoutWidth / 6, 0)
         ivCustomRight?.layoutParams = ivCustomParamRight
         ivCustomRight?.setOnClickListener {
@@ -242,6 +205,42 @@ class RecordLayout @JvmOverloads constructor(
         this.addView(ivCustomRight)
         this.addView(textView)
 
+    }
+
+    private fun initEvent() {
+        // The default Type button is hidden
+        ivCustomRight?.visibility = View.GONE
+        btnCancel?.visibility = View.GONE
+        btnConfirm?.visibility = View.GONE
+    }
+
+    internal fun startTypeBtnAnimator() {
+        // Animation after taking a photo
+        if (this.iconLeft != 0)
+            ivCustomLeft?.visibility = View.GONE
+        else
+            btnReturn?.visibility = View.GONE
+        if (this.iconRight != 0)
+            ivCustomRight?.visibility = View.GONE
+//        btnCapture?.visibility = View.GONE
+        btnCancel?.visibility = View.VISIBLE
+        btnConfirm?.visibility = View.VISIBLE
+        btnCancel?.isClickable = false
+        btnConfirm?.isClickable = false
+        val animatorCancel = ObjectAnimator.ofFloat(btnCancel, "translationX", layoutWidth / 4f, 0f)
+        val animatorConfirm = ObjectAnimator.ofFloat(btnConfirm, "translationX", -layoutWidth / 4f, 0f)
+
+        val set = AnimatorSet()
+        set.playTogether(animatorCancel, animatorConfirm)
+        set.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                super.onAnimationEnd(animation)
+                btnCancel?.isClickable = true
+                btnConfirm?.isClickable = true
+            }
+        })
+        set.duration = 200
+        set.start()
     }
 
     fun resetCaptureLayout() {
@@ -283,7 +282,7 @@ class RecordLayout @JvmOverloads constructor(
     }
 
     fun setButtonFeatures(state: Int) {
-        btnCapture?.setButtonFeatures(state)
+        btnCapture?.setButtonState(state)
     }
 
     fun setTip(tip: String) {
@@ -337,8 +336,8 @@ class RecordLayout @JvmOverloads constructor(
         this.typeListener = typeListener
     }
 
-    fun setCaptureLisenter(captureLisenter: CaptureListener) {
-        this.captureListener = captureLisenter
+    fun setCaptureListener(captureListener: CaptureListener) {
+        this.captureListener = captureListener
     }
 
     fun setReturnLisenter(returnListener: ReturnListener) {

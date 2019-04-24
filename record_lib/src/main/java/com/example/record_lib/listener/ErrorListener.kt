@@ -6,5 +6,5 @@ package com.example.record_lib.listener
  */
 interface ErrorListener {
     fun onError()
-    fun AudioPermissionError()
+    fun audioPermissionError()
 }

@@ -13,6 +13,7 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.example.record_lib.listener.CaptureListener
+import com.example.record_lib.util.CheckPermission
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
@@ -212,12 +213,13 @@ class CameraRecordButton @JvmOverloads constructor(
     private fun startZoomAnimation() {
         state = STATE_RECORDING
         // No recording permission
-        /* if (CheckPermission.recordState != CheckPermission.STATE_SUCCESS) {
-             if (captureListener != null) {
-                 captureListener?.recordError()
-                 return
-             }
-         }*/
+        // todo will open later
+        if (CheckPermission.recordState != CheckPermission.STATE_SUCCESS) {
+            if (captureListener != null) {
+                captureListener?.recordError()
+                return
+            }
+        }
         // Start button animation, the outer circle becomes zoom animation, and the inner circle to the border rectangle
         startRecordAnimation(
             strokeWidth,
@@ -322,12 +324,12 @@ class CameraRecordButton @JvmOverloads constructor(
     }
 
     // animatorSet button state
-    fun setButtonFeatures(state: Int) {
+    fun setButtonState(state: Int) {
         buttonState = state
     }
 
     // Check is Idle state
-    fun isIdle(): Boolean = state == STATE_IDLE
+    fun isIdleState(): Boolean = state == STATE_IDLE
 
     // Reset state
     fun resetState() {

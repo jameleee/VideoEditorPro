@@ -13,10 +13,9 @@ import java.io.IOException
  * Create by Dat Bui T. on 4/18/19.
  */
 object FileUtil {
-    private val TAG = "CJT"
     private val parentPath = Environment.getExternalStorageDirectory()
     private var storagePath = ""
-    private var DST_FOLDER_NAME = "JCamera"
+    private var DST_FOLDER_NAME = "VideoEditorPro"
 
     val isExternalStorageWritable: Boolean
         get() {
@@ -26,7 +25,7 @@ object FileUtil {
 
     private fun initPath(): String {
         if (storagePath == "") {
-            storagePath = parentPath.absolutePath + File.separator + "haodiaoyu" + File.separator + DST_FOLDER_NAME
+            storagePath = parentPath.absolutePath + File.separator + "datbui" + File.separator + DST_FOLDER_NAME
             val f = File(storagePath)
             if (!f.exists()) {
                 f.mkdir()
@@ -41,8 +40,8 @@ object FileUtil {
         val dataTake = System.currentTimeMillis()
         val jpegName = path + File.separator + "picture_" + dataTake + ".jpg"
         return try {
-            val fout = FileOutputStream(jpegName)
-            val bos = BufferedOutputStream(fout)
+            val fileOutput = FileOutputStream(jpegName)
+            val bos = BufferedOutputStream(fileOutput)
             b.compress(Bitmap.CompressFormat.JPEG, 100, bos)
             bos.flush()
             bos.close()
