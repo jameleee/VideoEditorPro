@@ -140,8 +140,8 @@ class CameraRecordButton @JvmOverloads constructor(
                     return false
                 eventY = event.y
                 animatorSet.cancel()
-//                if ((buttonState == ButtonState.BUTTON_STATE_ONLY_RECORDER.type() || buttonState == ButtonState.BUTTON_STATE_BOTH.type()))
-                if (state == STATE_IDLE) startZoomAnimation() else handlerUnPressByState()
+                if ((buttonState == ButtonState.BUTTON_STATE_ONLY_RECORDER.type() || buttonState == ButtonState.BUTTON_STATE_BOTH.type()))
+                    if (state == STATE_IDLE) startZoomAnimation() else handlerUnPressByState()
             }
             MotionEvent.ACTION_MOVE -> if (captureListener != null
                 && state == STATE_RECORDING

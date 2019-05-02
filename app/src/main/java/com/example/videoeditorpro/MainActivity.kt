@@ -12,6 +12,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         cameraRecord.run {
+            setFragmentManager(supportFragmentManager, windowManager)
             setMinDuration(3000)
             setDuration(10000)
             setFeatures(ButtonState.BUTTON_STATE_ONLY_RECORDER.type())

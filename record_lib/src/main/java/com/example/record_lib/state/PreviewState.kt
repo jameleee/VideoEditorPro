@@ -5,7 +5,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
 import com.example.record_lib.CameraInterface
-import com.example.record_lib.CameraView
+import com.example.record_lib.cameraview.CameraView
 
 /**
  * @author Dat Bui T. on 4/22/19.
@@ -26,7 +26,7 @@ internal class PreviewState(private val machine: CameraMachine) : State {
 
     override fun focus(x: Float, y: Float, callback: CameraInterface.FocusCallback) {
         Log.d(TAG, "preview state focus")
-        if (machine.view.handlerFoucs(x, y)) {
+        if (machine.viewListener.handlerFoucs(x, y)) {
             CameraInterface.instance.handleFocus(machine.context, x, y, callback)
         }
     }
@@ -42,7 +42,7 @@ internal class PreviewState(private val machine: CameraMachine) : State {
     override fun capture() {
         CameraInterface.instance.takePicture(object : CameraInterface.TakePictureCallback {
             override fun captureResult(bitmap: Bitmap, isVertical: Boolean) {
-                machine.view.showPicture(bitmap, isVertical)
+                machine.viewListener.showPicture(bitmap, isVertical)
                 machine.state = machine.borrowPictureState
                 Log.d(TAG, "capture")
             }
@@ -57,10 +57,10 @@ internal class PreviewState(private val machine: CameraMachine) : State {
         CameraInterface.instance.stopRecord(isShort, object : CameraInterface.StopRecordCallback {
             override fun recordResult(url: String?, firstFrame: Bitmap?) {
                 if (isShort) {
-                    machine.view.resetState(CameraView.TYPE_SHORT)
+                    machine.viewListener.resetState(CameraView.TYPE_SHORT)
                 } else {
                     if (firstFrame != null && url != null) {
-                        machine.view.playVideo(firstFrame, url)
+                        machine.viewListener.playVideo(firstFrame, url)
                     }
                     machine.state = machine.borrowVideoState
                 }

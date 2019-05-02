@@ -15,6 +15,7 @@ import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.widget.ImageView
+import com.example.record_lib.cameraview.CameraView
 import com.example.record_lib.listener.ErrorListener
 import com.example.record_lib.util.*
 import java.io.ByteArrayOutputStream
@@ -39,7 +40,6 @@ class CameraInterface : Camera.PreviewCallback {
 
         const val TYPE_RECORDER = 11000
         const val TYPE_CAPTURE = 11001
-
 
         private fun calculateTapArea(x: Float, y: Float, coefficient: Float, context: Context): Rect {
             val focusAreaSize = 300f

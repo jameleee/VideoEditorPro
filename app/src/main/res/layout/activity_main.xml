@@ -7,7 +7,7 @@
     android:background="#AA1515"
     android:orientation="vertical">
 
-    <com.example.record_lib.CameraView
+    <com.example.record_lib.cameraview.CameraView
         android:id="@+id/cameraRecord"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

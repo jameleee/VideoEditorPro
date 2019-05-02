@@ -1,36 +1,43 @@
-package com.example.record_lib
+package com.example.record_lib.cameraview
 
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.SurfaceTexture
 import android.hardware.Camera
+import android.hardware.camera2.CameraDevice
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.util.AttributeSet
+import android.util.DisplayMetrics
 import android.util.Log
 import android.util.TypedValue
 import android.view.*
 import android.widget.FrameLayout
 import android.widget.ImageView
+import androidx.fragment.app.FragmentManager
+import com.example.record_lib.Camera2Interface
+import com.example.record_lib.R
+import com.example.record_lib.camera2state.CameraMachine
 import com.example.record_lib.listener.*
-import com.example.record_lib.state.CameraMachine
 import com.example.record_lib.util.FileUtil
 import com.example.record_lib.util.ScreenUtils
-import com.example.record_lib.view.CameraView
+import com.example.record_lib.view.CameraViewListener
 import kotlinx.android.synthetic.main.camera_view.view.*
 import java.io.IOException
+
 
 /**
  * @author Dat Bui T. on 4/22/19.
  */
 class CameraView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
-) : FrameLayout(context, attrs, defStyleAttr), CameraInterface.CameraOpenOverCallback, SurfaceHolder.Callback,
-    CameraView {
+) : FrameLayout(context, attrs, defStyleAttr), Camera2Interface.CameraOpenOverCallback,
+    CameraViewListener {
 
     companion object {
-        private const val TAG = "CameraView"
+        private const val TAG = "CameraViewListener"
         // Status of flash
         private const val TYPE_FLASH_AUTO = 10020
         private const val TYPE_FLASH_ON = 10021
@@ -88,8 +95,40 @@ class CameraView @JvmOverloads constructor(
     private var firstTouchLength = 0f
     private var mRecordShortTip = "Recording time is too short"
 
+    private val surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+        override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+            Camera2Interface.instance.setCameraManager(context, stateCallback)
+        }
+
+        override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+
+        override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+            return false
+        }
+
+        override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+    }
+
+    private val stateCallback = object : CameraDevice.StateCallback() {
+        override fun onOpened(camera: CameraDevice) {
+            Camera2Interface.instance.cameraDevice = camera
+            machine?.start(textureView, screenProp)
+        }
+
+        override fun onDisconnected(camera: CameraDevice) {
+            camera.close()
+        }
+
+        override fun onError(camera: CameraDevice, error: Int) {
+            onDisconnected(camera)
+        }
+    }
+
     init {
-        val a = context.theme.obtainStyledAttributes(attrs, R.styleable.CameraView, defStyleAttr, 0)
+        val a = context.theme.obtainStyledAttributes(
+            attrs,
+            R.styleable.CameraView, defStyleAttr, 0
+        )
         iconSize = a.getDimensionPixelSize(
             R.styleable.CameraView_iconSize, TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_SP, 35f, resources.displayMetrics
@@ -100,7 +139,10 @@ class CameraView @JvmOverloads constructor(
                 TypedValue.COMPLEX_UNIT_SP, 15f, resources.displayMetrics
             ).toInt()
         )
-        iconSrc = a.getResourceId(R.styleable.CameraView_iconSrc, R.drawable.ic_camera)
+        iconSrc = a.getResourceId(
+            R.styleable.CameraView_iconSrc,
+            R.drawable.ic_camera
+        )
         iconLeft = a.getResourceId(R.styleable.CameraView_iconLeft, 0)
         iconRight = a.getResourceId(R.styleable.CameraView_iconRight, 0)
         duration = a.getInteger(R.styleable.CameraView_duration_max, 10000)
@@ -120,24 +162,7 @@ class CameraView @JvmOverloads constructor(
     }
 
     override fun cameraHasOpened() {
-        CameraInterface.instance.doStartPreview(videoPlayer.holder, screenProp)
-    }
-
-    override fun surfaceCreated(holder: SurfaceHolder?) {
-        Log.d(TAG, "CameraView surfaceCreated")
-        object : Thread() {
-            override fun run() {
-                CameraInterface.instance.doOpenCamera(this@CameraView)
-            }
-        }.start()
-    }
-
-    override fun surfaceChanged(holder: SurfaceHolder?, format: Int, width: Int, height: Int) {
-    }
-
-    override fun surfaceDestroyed(holder: SurfaceHolder?) {
-        Log.d(TAG, "CameraView surfaceDestroyed")
-        CameraInterface.instance.doDestroyCamera()
+        Camera2Interface.instance.doStartPreview(textureView, screenProp)
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -175,7 +200,10 @@ class CameraView @JvmOverloads constructor(
                     }
                     if ((result - firstTouchLength).toInt() / zoomGradient != 0) {
                         firstTouch = true
-                        machine?.zoom(result - firstTouchLength, CameraInterface.TYPE_CAPTURE)
+                        machine?.zoom(
+                            result - firstTouchLength,
+                            Camera2Interface.TYPE_CAPTURE
+                        )
                     }
                 }
             }
@@ -186,7 +214,7 @@ class CameraView @JvmOverloads constructor(
 
     // Focus frame indicator animation
     private fun setFocusViewWidthAnimation(x: Float, y: Float) {
-        machine?.focus(x, y, object : CameraInterface.FocusCallback {
+        machine?.focus(x, y, object : Camera2Interface.FocusCallback {
             override fun focusSuccess() {
                 focusView.visibility = View.INVISIBLE
             }
@@ -213,7 +241,7 @@ class CameraView @JvmOverloads constructor(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
-                machine?.start(videoPlayer.holder, screenProp)
+                machine?.start(textureView, screenProp)
             }
             TYPE_PICTURE -> imgPhoto.visibility = View.INVISIBLE
             TYPE_SHORT -> {
@@ -236,7 +264,7 @@ class CameraView @JvmOverloads constructor(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
                 )
-                machine?.start(videoPlayer.holder, screenProp)
+                machine?.start(textureView, screenProp)
                 videoUrl?.let { videoUrl ->
                     firstFrame?.let { firstFrame ->
                         cameraListener?.recordSuccess(
@@ -357,29 +385,34 @@ class CameraView @JvmOverloads constructor(
      * This func use on the parent in life cycle onResume
      */
     fun onResume() {
-        Log.d(TAG, "CameraView onResume")
+        Log.d(TAG, "CameraViewListener onResume")
         resetState(TYPE_DEFAULT) //重置状态
-        CameraInterface.instance.registerSensorManager(context)
-        CameraInterface.instance.setSwitchView(imgSwitch, imgFlash)
-        machine?.start(videoPlayer.holder, screenProp)
+//        Camera2Interface.instance.registerSensorManager(context)
+//        Camera2Interface.instance.setSwitchView(imgSwitch, imgFlash)
+        if (textureView.isAvailable) {
+            Camera2Interface.instance.setCameraManager(context, stateCallback)
+        } else {
+            textureView.surfaceTextureListener = surfaceTextureListener
+        }
+        machine?.start(textureView, screenProp)
     }
 
     /**
      * This func use on the parent in life cycle onPause
      */
     fun onPause() {
-        Log.d(TAG, "CameraView onPause")
+        Log.d(TAG, "CameraViewListener onPause")
         stopVideo()
         resetState(TYPE_PICTURE)
-        CameraInterface.instance.isPreview(false)
-        CameraInterface.instance.unregisterSensorManager(context)
+        Camera2Interface.instance.isPreview(false)
+//        Camera2Interface.instance.unregisterSensorManager(context)
     }
 
     /**
      * This func use save video path
      */
     fun setSaveVideoPath(path: String) {
-        CameraInterface.instance.setSaveVideoPath(path)
+//        Camera2Interface.instance.setSaveVideoPath(path)
     }
 
     /**
@@ -408,7 +441,7 @@ class CameraView @JvmOverloads constructor(
      */
     fun setErrorListener(errorListener: ErrorListener) {
         this.errorListener = errorListener
-        CameraInterface.instance.setErrorListener(errorListener)
+//        Camera2Interface.instance.setErrorListener(errorListener)
     }
 
     /**
@@ -422,7 +455,7 @@ class CameraView @JvmOverloads constructor(
      * This func use to set the recording quality
      */
     fun setMediaQuality(quality: Int) {
-        CameraInterface.instance.setMediaQuality(quality)
+//        Camera2Interface.instance.setMediaQuality(quality)
     }
 
     /**
@@ -439,6 +472,24 @@ class CameraView @JvmOverloads constructor(
      */
     fun setMinDuration(minDuration: Int) {
         recordLayout.setMinDuration(minDuration)
+    }
+
+    fun setFragmentManager(fragmentManger: FragmentManager, windownManager: WindowManager) {
+        val outMetrics = DisplayMetrics()
+        windownManager.defaultDisplay.getMetrics(outMetrics)
+
+        viewPagerState.adapter =
+            CameraPagerStateAdapter(listOf("Record", "Hold to record"), fragmentManger)
+
+        viewPagerState.clipToPadding = false
+        viewPagerState.setPadding(
+            outMetrics.widthPixels * 2 / 5,
+            0,
+            outMetrics.widthPixels * 2 / 5,
+            0
+        )
+
+        viewPagerState.offscreenPageLimit = 3
     }
 
     /**
@@ -484,13 +535,15 @@ class CameraView @JvmOverloads constructor(
         setWillNotDraw(false)
         LayoutInflater.from(context).inflate(R.layout.camera_view, this)
 
+        textureView.surfaceTextureListener = surfaceTextureListener
         setFlashRes()
 
         imgSwitch.setImageResource(iconSrc)
         imgFlash.setOnClickListener {
             type_flash++
             if (type_flash > 0x023)
-                type_flash = TYPE_FLASH_AUTO
+                type_flash =
+                    TYPE_FLASH_AUTO
             setFlashRes()
         }
         btnBack.setOnClickListener {
@@ -501,9 +554,9 @@ class CameraView @JvmOverloads constructor(
         //隐藏CaptureLayout的左按钮与右按钮
         //        mCaptureLayout.setIconSrc(-1, 0);
         recordLayout.setIconSrc(iconLeft, iconRight)
-        videoPlayer.holder.addCallback(this)
+//        videoPlayer.holder.addCallback(this)
         //切换摄像头
-        imgSwitch.setOnClickListener { machine?.switchView(videoPlayer.holder, screenProp) }
+        imgSwitch.setOnClickListener { machine?.switchView(textureView, screenProp, stateCallback) }
         //拍照 录像
         recordLayout.setCaptureListener(object : CaptureListener {
             override fun takePictures() {
@@ -533,17 +586,17 @@ class CameraView @JvmOverloads constructor(
 
             override fun recordZoom(zoom: Float) {
                 Log.d(TAG, "recordZoom")
-                machine?.zoom(zoom, CameraInterface.TYPE_RECORDER)
+                machine?.zoom(zoom, Camera2Interface.TYPE_RECORDER)
             }
 
             override fun recordError() {
                 errorListener?.audioPermissionError()
             }
         })
-        //确认 取消
+
         recordLayout?.setTypeLisenter(object : TypeListener {
             override fun cancel() {
-                videoPlayer.holder.let { machine?.cancel(it, screenProp) }
+                machine?.cancel(textureView, screenProp)
                 mRecordStateListener?.recordCancel()
             }
 
@@ -569,5 +622,6 @@ class CameraView @JvmOverloads constructor(
                 rightClickListener?.onClick()
             }
         })
+
     }
 }

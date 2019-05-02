@@ -36,7 +36,6 @@ class RecordLayout @JvmOverloads constructor(
     private var btnCapture: CameraRecordButton? = null
     private var btnConfirm: TypeButtonView? = null
     private var btnCancel: TypeButtonView? = null
-    private var btnReturn: ReturnButton? = null
     private var ivCustomLeft: ImageView? = null
     private var ivCustomRight: ImageView? = null
     private var textView: TextView? = null
@@ -218,8 +217,6 @@ class RecordLayout @JvmOverloads constructor(
         // Animation after taking a photo
         if (this.iconLeft != 0)
             ivCustomLeft?.visibility = View.GONE
-        else
-            btnReturn?.visibility = View.GONE
         if (this.iconRight != 0)
             ivCustomRight?.visibility = View.GONE
 //        btnCapture?.visibility = View.GONE
@@ -250,8 +247,6 @@ class RecordLayout @JvmOverloads constructor(
         btnCapture?.visibility = View.VISIBLE
         if (this.iconLeft != 0)
             ivCustomLeft?.visibility = View.VISIBLE
-        else
-            btnReturn?.visibility = View.VISIBLE
         if (this.iconRight != 0)
             ivCustomRight?.visibility = View.VISIBLE
     }
@@ -299,10 +294,8 @@ class RecordLayout @JvmOverloads constructor(
         if (this.iconLeft != 0) {
             ivCustomLeft?.setImageResource(iconLeft)
             ivCustomLeft?.visibility = View.VISIBLE
-            btnReturn?.visibility = View.GONE
         } else {
             ivCustomLeft?.visibility = View.GONE
-            btnReturn?.visibility = View.VISIBLE
         }
         if (this.iconRight != 0) {
             ivCustomRight?.setImageResource(iconRight)
@@ -321,7 +314,7 @@ class RecordLayout @JvmOverloads constructor(
     }
 
     fun btnReturnVisible(visible: Boolean) {
-        btnReturn?.visibility = if (visible) View.VISIBLE else View.GONE
+//        btnReturn?.visibility = if (visible) View.VISIBLE else View.GONE
     }
 
     fun setLeftClickListener(leftClickListener: ClickListener) {

@@ -1,9 +1,10 @@
-package com.example.record_lib.state
+package com.example.record_lib.camera2state
 
 import android.content.Context
+import android.hardware.camera2.CameraDevice
 import android.view.Surface
-import android.view.SurfaceHolder
-import com.example.record_lib.CameraInterface
+import android.view.TextureView
+import com.example.record_lib.Camera2Interface
 import com.example.record_lib.view.CameraViewListener
 
 /**
@@ -12,11 +13,11 @@ import com.example.record_lib.view.CameraViewListener
 class CameraMachine(
     val context: Context,
     val viewListener: CameraViewListener,
-    cameraOpenOverCallback: CameraInterface.CameraOpenOverCallback
+    cameraOpenOverCallback: Camera2Interface.CameraOpenOverCallback
 ) : State {
 
     var state: State? = null
-    //    private CameraInterface.CameraOpenOverCallback cameraOpenOverCallback;
+    //    private Camera2Interface.CameraOpenOverCallback cameraOpenOverCallback;
 
     // Get idle status
     internal val previewState: State       // Browse status (idle)
@@ -34,11 +35,11 @@ class CameraMachine(
         // this.cameraOpenOverCallback = cameraOpenOverCallback;
     }
 
-    override fun focus(x: Float, y: Float, callback: CameraInterface.FocusCallback) {
+    override fun focus(x: Float, y: Float, callback: Camera2Interface.FocusCallback) {
         state?.focus(x, y, callback)
     }
 
-    override fun start(holder: SurfaceHolder, screenProp: Float) {
+    override fun start(holder: TextureView, screenProp: Float) {
         state?.start(holder, screenProp)
     }
 
@@ -46,8 +47,8 @@ class CameraMachine(
         state?.stop()
     }
 
-    override fun switchView(holder: SurfaceHolder, screenProp: Float) {
-        state?.switchView(holder, screenProp)
+    override fun switchView(holder: TextureView, screenProp: Float, stateCallback: CameraDevice.StateCallback) {
+        state?.switchView(holder, screenProp, stateCallback)
     }
 
     override fun restart() {
@@ -66,7 +67,7 @@ class CameraMachine(
         state?.stopRecord(isShort, time)
     }
 
-    override fun cancel(holder: SurfaceHolder, screenProp: Float) {
+    override fun cancel(holder: TextureView, screenProp: Float) {
         state?.cancel(holder, screenProp)
     }
 
